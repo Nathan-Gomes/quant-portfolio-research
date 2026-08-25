@@ -1,0 +1,17 @@
+project_name: Quantitative Portfolio Research Pipeline
+data_start: "2018-01-01"
+data_end: "2025-12-31"
+benchmark: SPY
+lookback_months: 36
+rebalance_frequency_months: 3
+maximum_asset_weight: 0.30
+transaction_cost_bps: 10
+risk_free_rate: 0.03
+trading_days: 252
+assets:
+  EWC: Canadian equities
+  SPY: US equities
+  EFA: Developed international equities
+  EEM: Emerging-market equities
+  AGG: US aggregate bonds
+  GLD: Gold
