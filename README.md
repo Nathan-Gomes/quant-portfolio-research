@@ -1,10 +1,23 @@
 # Quantitative Portfolio Research Pipeline
 
+![Python](https://img.shields.io/badge/Python-pandas%20%2F%20NumPy%20%2F%20SciPy-0d1117?style=for-the-badge&logo=python&logoColor=58a6ff)
+![SQL](https://img.shields.io/badge/SQL-analytics%20queries-0d1117?style=for-the-badge&logo=sqlite&logoColor=7ee787)
+![MATLAB](https://img.shields.io/badge/MATLAB-optimization%20comparison-0d1117?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-pytest-0d1117?style=for-the-badge&logo=pytest&logoColor=ffffff)
+
 A reproducible research-to-production workflow for constrained ETF portfolio optimization. The project combines Python, pandas, SQL, SciPy, MATLAB, automated testing, and a browser-based research report.
+
+[Live report](https://www.nathan-gomes.com/quant-portfolio-report.html) | [Portfolio page](https://www.nathan-gomes.com/Project-Quant-Portfolio.dc.html)
 
 ## Research question
 
 Can a long-only, diversified ETF portfolio with a 30% asset cap improve risk-adjusted performance relative to an SPY benchmark when weights are estimated only from prior data and transaction costs are included?
+
+## What this solves
+
+Investment research can look convincing when it is only a spreadsheet or one-off notebook. This project turns the research process into a repeatable pipeline where assumptions, data, calculations, constraints, costs, and validation checks are visible.
+
+The goal is not to prove that one portfolio always wins. The goal is to show how a quantitative research idea can be implemented, tested, backtested, documented, and reviewed before anyone would trust it.
 
 ## Pipeline
 
@@ -17,6 +30,28 @@ Can a long-only, diversified ETF portfolio with a 30% asset cap improve risk-adj
 7. Validate the calculations and constraints with pytest.
 8. Generate an interactive HTML research report.
 
+## Key outputs
+
+- Latest optimized portfolio weights
+- Portfolio versus benchmark performance
+- Annualized return, volatility, Sharpe ratio, maximum drawdown, and VaR
+- Correlation heatmap across assets
+- Drawdown chart for the optimized strategy and benchmark
+- Rebalance history and turnover cost impact
+- Python versus MATLAB minimum-variance optimization comparison
+
+## Why it is relevant
+
+This mirrors the work of a quantitative developer supporting a research team:
+
+- Convert market data into clean, queryable research tables
+- Implement financial calculations in Python and pandas
+- Use SQL for analysis and data checks
+- Solve constrained optimization problems
+- Avoid look-ahead bias through walk-forward testing
+- Package the results into a report that non-developers can review
+- Add tests so calculations can be trusted and rerun
+
 ## Run
 
 ```bash
@@ -26,6 +61,8 @@ pytest
 ```
 
 Open `outputs/research_report.html` in a browser.
+
+The generated report is also published on the portfolio site as the live project artifact.
 
 ## Configuration
 
