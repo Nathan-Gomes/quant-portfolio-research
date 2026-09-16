@@ -9,6 +9,10 @@ A reproducible research-to-production workflow for constrained ETF portfolio opt
 
 [Live report](https://www.nathan-gomes.com/quant-portfolio-report.html) | [Portfolio page](https://www.nathan-gomes.com/Project-Quant-Portfolio.dc.html)
 
+## Review with Matt
+
+Start with the short [review guide](docs/REVIEW_GUIDE.md). It explains the research question, the walk-forward decision flow, where the important calculations live, and the limits of the result without requiring a line-by-line code review.
+
 ## Research question
 
 Can a long-only, diversified ETF portfolio with a 30% asset cap improve risk-adjusted performance relative to an SPY benchmark when weights are estimated only from prior data and transaction costs are included?

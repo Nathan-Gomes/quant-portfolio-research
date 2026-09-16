@@ -11,6 +11,7 @@ def _validate_max_weight(asset_count: int, maximum_weight: float) -> None:
 
 
 def minimum_variance_weights(returns: pd.DataFrame, maximum_weight: float, periods: int = 252) -> pd.Series:
+    """Solve a long-only, fully invested minimum-variance allocation."""
     clean = returns.dropna()
     assets = list(clean.columns)
     _validate_max_weight(len(assets), maximum_weight)
@@ -32,6 +33,12 @@ def minimum_variance_weights(returns: pd.DataFrame, maximum_weight: float, perio
 def maximum_sharpe_weights(
     returns: pd.DataFrame, maximum_weight: float, risk_free_rate: float, periods: int = 252
 ) -> pd.Series:
+    """Solve the capped long-only allocation with the highest in-sample Sharpe ratio.
+
+    The caller controls what history reaches this optimizer. In the walk-forward
+    backtest, that history ends at each rebalance date rather than the end of
+    the full sample.
+    """
     clean = returns.dropna()
     assets = list(clean.columns)
     _validate_max_weight(len(assets), maximum_weight)

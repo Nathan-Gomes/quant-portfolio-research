@@ -1,3 +1,5 @@
+"""Walk-forward engine for out-of-sample ETF portfolio research."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -24,6 +26,12 @@ def walk_forward_backtest(
     risk_free_rate: float,
     periods: int = 252,
 ) -> BacktestResult:
+    """Fit on each trailing window and score only the returns that follow it.
+
+    On a rebalance date, weights may use returns through that date's close, but
+    the holding period begins on the next available session. This makes the
+    timing explicit: a return cannot help choose the weights that earn it.
+    """
     returns = asset_returns.dropna().sort_index()
     month_ends = returns.resample("ME").last().index
     eligible = month_ends[month_ends >= returns.index.min() + pd.DateOffset(months=lookback_months)]
@@ -38,6 +46,7 @@ def walk_forward_backtest(
 
     for index, rebalance_date in enumerate(rebalance_dates):
         training_start = rebalance_date - pd.DateOffset(months=lookback_months)
+        # The optimizer sees only the completed trailing window at this date.
         training = returns.loc[(returns.index > training_start) & (returns.index <= rebalance_date)]
         weights = maximum_sharpe_weights(training, maximum_weight, risk_free_rate, periods).reindex(returns.columns)
         weights.name = rebalance_date
@@ -48,9 +57,11 @@ def walk_forward_backtest(
         previous_weights = weights
 
         next_date = rebalance_dates[index + 1] if index + 1 < len(rebalance_dates) else returns.index.max()
+        # Exclude the rebalance date so selected weights apply only to later returns.
         holding = returns.loc[(returns.index > rebalance_date) & (returns.index <= next_date)]
         holding_returns = holding.mul(weights, axis=1).sum(axis=1)
         if not holding_returns.empty:
+            # Pay the declared turnover cost once when the new allocation starts.
             holding_returns.iloc[0] -= turnover * transaction_cost_bps / 10_000.0
             strategy.loc[holding_returns.index] = holding_returns
 
