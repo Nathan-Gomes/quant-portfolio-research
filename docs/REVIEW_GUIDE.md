@@ -14,8 +14,11 @@ It is a reproducible historical research exercise, not a return forecast. It sho
 2. Inspect [config/research.yaml](../config/research.yaml) for the ETF universe, 30% cap, 36-month lookback, quarterly rebalances, costs, and risk-free rate.
 3. Read [backtest.py](../src/quant_pipeline/backtest.py): it fits weights on the trailing window, then scores only later returns.
 4. Read [optimize.py](../src/quant_pipeline/optimize.py): SciPy solves the fully invested, long-only, capped allocation problem.
-5. Open `outputs/research_report.html` for the performance, drawdown, correlation, and rebalance evidence.
-6. Review [test_backtest.py](../tests/test_backtest.py) and the other tests for the calculation and timing checks.
+5. Read [strategies.py](../src/quant_pipeline/strategies.py): equal weight, inverse volatility, risk parity, and static allocation run through the same walk-forward engine, on the same rebalance dates, so the comparison with the optimizer is paired rather than incidental.
+6. Read [estimators.py](../src/quant_pipeline/estimators.py) for the Ledoit-Wolf and James-Stein shrinkage that feeds the optimizer, and [sensitivity.py](../src/quant_pipeline/sensitivity.py) for the one-at-a-time sweep over lookback, cap, cost, and estimator that checks the ranking isn't an artifact of one setting.
+7. Open `outputs/research_report.html` for the performance, drawdown, correlation, rebalance, naive-baseline, and sensitivity evidence.
+8. Review [test_backtest.py](../tests/test_backtest.py), [test_strategies.py](../tests/test_strategies.py), and [test_solver_reference.py](../tests/test_solver_reference.py) for the calculation, timing, and solver-optimality checks.
+9. Run `octave --no-gui matlab/verify_against_python.m` (or check the `matlab-cross-check` job in CI) to see the independent MATLAB re-solve agree with Python to 6e-7.
 
 ## Decision flow
 

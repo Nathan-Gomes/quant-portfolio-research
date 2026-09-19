@@ -1,0 +1,15 @@
+# GitHub's language bar weighs bytes of committed files, and this repository
+# commits its own outputs: a self-contained HTML research report with charts and
+# data embedded in it. Left unmarked, that one file makes the project look like
+# 89% HTML when the work is Python, SQL and MATLAB.
+#
+# Marking them keeps the artifacts in the repository — the case study links the
+# report — while excluding them from the language statistics and collapsing them
+# in diffs, which is also what you want when reviewing a change.
+
+outputs/**              linguist-generated=true
+docs/**                 linguist-documentation=true
+data/*.csv              linguist-generated=true
+
+# Normalize line endings so a Windows checkout does not rewrite every file.
+* text=auto eol=lf

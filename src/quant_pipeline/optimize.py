@@ -10,12 +10,22 @@ def _validate_max_weight(asset_count: int, maximum_weight: float) -> None:
         raise ValueError("maximum_asset_weight is too low to create a fully invested portfolio")
 
 
-def minimum_variance_weights(returns: pd.DataFrame, maximum_weight: float, periods: int = 252) -> pd.Series:
-    """Solve a long-only, fully invested minimum-variance allocation."""
+def minimum_variance_weights(
+    returns: pd.DataFrame,
+    maximum_weight: float,
+    periods: int = 252,
+    covariance: pd.DataFrame | None = None,
+) -> pd.Series:
+    """Solve a long-only, fully invested minimum-variance allocation.
+
+    ``covariance`` lets the caller supply an estimate — a shrunk one, say —
+    rather than having the sample estimate computed here. Which estimator is
+    used is a research decision and belongs with the caller.
+    """
     clean = returns.dropna()
     assets = list(clean.columns)
     _validate_max_weight(len(assets), maximum_weight)
-    covariance = clean.cov().to_numpy() * periods
+    covariance = (clean.cov() * periods if covariance is None else covariance).to_numpy(dtype=float)
     initial = np.repeat(1.0 / len(assets), len(assets))
     result = minimize(
         lambda weights: float(weights @ covariance @ weights),
@@ -31,7 +41,12 @@ def minimum_variance_weights(returns: pd.DataFrame, maximum_weight: float, perio
 
 
 def maximum_sharpe_weights(
-    returns: pd.DataFrame, maximum_weight: float, risk_free_rate: float, periods: int = 252
+    returns: pd.DataFrame,
+    maximum_weight: float,
+    risk_free_rate: float,
+    periods: int = 252,
+    covariance: pd.DataFrame | None = None,
+    expected_returns: pd.Series | None = None,
 ) -> pd.Series:
     """Solve the capped long-only allocation with the highest in-sample Sharpe ratio.
 
@@ -42,8 +57,12 @@ def maximum_sharpe_weights(
     clean = returns.dropna()
     assets = list(clean.columns)
     _validate_max_weight(len(assets), maximum_weight)
-    expected_returns = clean.mean().to_numpy() * periods
-    covariance = clean.cov().to_numpy() * periods
+    expected_returns = (
+        clean.mean() * periods if expected_returns is None else expected_returns
+    ).reindex(assets).to_numpy(dtype=float)
+    covariance = (
+        clean.cov() * periods if covariance is None else covariance
+    ).loc[assets, assets].to_numpy(dtype=float)
     initial = np.repeat(1.0 / len(assets), len(assets))
 
     def negative_sharpe(weights: np.ndarray) -> float:

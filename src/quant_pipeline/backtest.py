@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
-from .optimize import maximum_sharpe_weights
+from .estimators import estimate
+from .strategies import Settings, get
 
 
 @dataclass
@@ -14,6 +15,9 @@ class BacktestResult:
     returns: pd.DataFrame
     weights: pd.DataFrame
     turnover: pd.Series
+    # Populated when several rules are run together, so each can be inspected.
+    by_strategy: dict = field(default_factory=dict)
+    diagnostics: dict = field(default_factory=dict)
 
 
 def walk_forward_backtest(
@@ -25,6 +29,10 @@ def walk_forward_backtest(
     transaction_cost_bps: float,
     risk_free_rate: float,
     periods: int = 252,
+    strategy: str = "maximum_sharpe",
+    covariance_estimator: str = "ledoit_wolf",
+    mean_estimator: str = "james_stein",
+    static_weights: dict | None = None,
 ) -> BacktestResult:
     """Fit on each trailing window and score only the returns that follow it.
 
@@ -39,8 +47,15 @@ def walk_forward_backtest(
     if len(rebalance_dates) < 2:
         raise ValueError("Not enough history for the requested walk-forward backtest")
 
-    strategy = pd.Series(index=returns.index, dtype=float)
+    rule = get(strategy)
+    settings = Settings(
+        maximum_weight=maximum_weight, risk_free_rate=risk_free_rate, periods=periods,
+        covariance_estimator=covariance_estimator, mean_estimator=mean_estimator,
+        static_weights=static_weights or {},
+    )
+    performance = pd.Series(index=returns.index, dtype=float)
     weight_rows: list[pd.Series] = []
+    shrinkage: list[float] = []
     turnover_values: dict[pd.Timestamp, float] = {}
     previous_weights = pd.Series(0.0, index=returns.columns)
 
@@ -48,8 +63,11 @@ def walk_forward_backtest(
         training_start = rebalance_date - pd.DateOffset(months=lookback_months)
         # The optimizer sees only the completed trailing window at this date.
         training = returns.loc[(returns.index > training_start) & (returns.index <= rebalance_date)]
-        weights = maximum_sharpe_weights(training, maximum_weight, risk_free_rate, periods).reindex(returns.columns)
+        weights = rule.solve(training, settings).reindex(returns.columns).fillna(0.0)
         weights.name = rebalance_date
+        if rule.optimizes:
+            shrinkage.append(estimate(training, covariance_estimator, mean_estimator,
+                                      periods)["covariance_shrinkage"])
         weight_rows.append(weights)
 
         turnover = float((weights - previous_weights).abs().sum()) if index else float(weights.abs().sum())
@@ -63,11 +81,55 @@ def walk_forward_backtest(
         if not holding_returns.empty:
             # Pay the declared turnover cost once when the new allocation starts.
             holding_returns.iloc[0] -= turnover * transaction_cost_bps / 10_000.0
-            strategy.loc[holding_returns.index] = holding_returns
+            performance.loc[holding_returns.index] = holding_returns
 
-    strategy = strategy.dropna()
-    benchmark_returns = returns.loc[strategy.index, benchmark]
-    result_returns = pd.DataFrame({"Optimized portfolio": strategy, f"Benchmark ({benchmark})": benchmark_returns})
+    performance = performance.dropna()
+    benchmark_returns = returns.loc[performance.index, benchmark]
+    result_returns = pd.DataFrame(
+        {"Optimized portfolio": performance, f"Benchmark ({benchmark})": benchmark_returns})
     weights_frame = pd.DataFrame(weight_rows)
     weights_frame.index.name = "rebalance_date"
-    return BacktestResult(result_returns, weights_frame, pd.Series(turnover_values, name="turnover"))
+    return BacktestResult(
+        result_returns, weights_frame, pd.Series(turnover_values, name="turnover"),
+        diagnostics={
+            "strategy": strategy,
+            "label": rule.label,
+            "rebalances": len(rebalance_dates),
+            "covariance_estimator": covariance_estimator,
+            "mean_estimator": mean_estimator,
+            "average_covariance_shrinkage": float(sum(shrinkage) / len(shrinkage)) if shrinkage else 0.0,
+            "annual_turnover": float(sum(turnover_values.values()) / max(
+                (performance.index.max() - performance.index.min()).days / 365.25, 1e-9)),
+        },
+    )
+
+
+def compare_strategies(
+    asset_returns: pd.DataFrame,
+    benchmark: str,
+    strategies: list[str],
+    **kwargs,
+) -> BacktestResult:
+    """Run several rules over identical rebalance dates and training windows.
+
+    The point of doing it in one pass is that every rule then sees the same
+    history and trades on the same days, so a difference between two of them
+    comes from the rule rather than from one having been luckier with its
+    schedule. Subtracting separately run backtests would not give this.
+    """
+    if not strategies:
+        raise ValueError("Name at least one strategy to compare.")
+    runs = {
+        name: walk_forward_backtest(asset_returns, benchmark=benchmark, strategy=name, **kwargs)
+        for name in strategies
+    }
+    first = runs[strategies[0]]
+    combined = pd.DataFrame({
+        runs[name].diagnostics["label"]: runs[name].returns["Optimized portfolio"] for name in strategies
+    })
+    combined[f"Benchmark ({benchmark})"] = first.returns[f"Benchmark ({benchmark})"]
+    return BacktestResult(
+        combined, first.weights, first.turnover,
+        by_strategy=runs,
+        diagnostics={"strategies": strategies, "rebalances": first.diagnostics["rebalances"]},
+    )
